@@ -92,7 +92,9 @@ public class DefectDojoPersistenceProvider implements PersistenceProvider {
         String username = securityTest.getMetaData().get(DefectDojoMetaFields.DEFECT_DOJO_USER.name());
         long userUrl = defectDojoService.retrieveUserId(username);
 
-        List<String> results = getDefectDojoScanName(securityTest.getName()).equals("Generic Findings Import") ? getGenericResults(securityTest) : getRawResults(securityTest);
+        List<String> results = new LinkedList();
+        results.add(securityTest.getReport().getRawFindings());
+
         for (String result : results) {
             defectDojoService.createFindings(
                     result,
@@ -137,16 +139,7 @@ public class DefectDojoPersistenceProvider implements PersistenceProvider {
     }
 
     private List<String> getRawResults(SecurityTest securityTest) throws DefectDojoPersistenceException {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        try {
-            String rawRawFindings = objectMapper.readValue(securityTest.getReport().getRawFindings(), String.class);
-
-            return objectMapper.readValue(rawRawFindings,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-        } catch (IOException e) {
-            throw new DefectDojoPersistenceException("RawResults were in an unexpected format. Might be something wrong with the scanner implementation?");
-        }
+       throw new DefectDojoPersistenceException("RawResults should not be called");
     }
 
     private List<String> getGenericResults(SecurityTest securityTest) {
@@ -182,6 +175,7 @@ public class DefectDojoPersistenceProvider implements PersistenceProvider {
         engagementPayload.setName(securityTest.getMetaData().get(CommonMetaFields.SCB_ENGAGEMENT_TITLE.name()) != null ?
                 securityTest.getMetaData().get(CommonMetaFields.SCB_ENGAGEMENT_TITLE.name()) : getDefectDojoScanName(securityTest.getName()));
         engagementPayload.setLead(defectDojoService.retrieveUserId(securityTest.getMetaData().get(DefectDojoMetaFields.DEFECT_DOJO_USER.name())));
+        descriptionGenerator = new DescriptionGenerator();
         engagementPayload.setDescription(descriptionGenerator.generate(securityTest));
         engagementPayload.setBranch(securityTest.getMetaData().get(CommonMetaFields.SCB_BRANCH.name()));
         engagementPayload.setBuildID(securityTest.getMetaData().get(CommonMetaFields.SCB_BUILD_ID.name()));
@@ -215,6 +209,9 @@ public class DefectDojoPersistenceProvider implements PersistenceProvider {
         // Map amass-nmap raw results to be imported as Nmap Results
         scannerDefectDojoMapping.put("amass-nmap", "Nmap Scan");
 
+        scannerDefectDojoMapping.put("clair", "Clair Scan");
+        scannerDefectDojoMapping.put("clairklar", "Clair Klar Scan");
+
         // Nikto is a supported tool as well but currently not accessible for supported import.
         // Nikto thus will use Generic Findings Import.
 
@@ -243,6 +240,7 @@ public class DefectDojoPersistenceProvider implements PersistenceProvider {
         if (scannerDefectDojoMapping.containsKey(securityTestName)) {
             return scannerDefectDojoMapping.get(securityTestName);
         }else{
+            LOG.info("Could not find a mapping for " + securityTestName);
             return "Generic Findings Import";
         }
     }
