@@ -49,7 +49,7 @@ public class EngagementPayload {
     protected Status status = Status.IN_PROGRESS;
 
     @JsonProperty
-    protected List<String> tags = Arrays.asList("secureCodeBox", "automated");
+    protected List<String> tags = Arrays.asList("automated");
 
     @JsonProperty
     protected String tracker;
